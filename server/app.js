@@ -4,6 +4,7 @@ import express from 'express';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import demoRoutes from './demoRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import requestRoutes from './routes/requestRoutes.js';
@@ -28,23 +29,31 @@ app.use((req, _res, next) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, name: "Selyn's Couture API" });
+  res.json({
+    ok: true,
+    name: "Selyn's Couture API",
+    mode: process.env.MONGODB_URI ? 'mongodb' : 'local-demo'
+  });
 });
 
-app.use(async (_req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (_error) {
-    res.status(500).json({ message: 'Database connection failed' });
-  }
-});
+if (!process.env.MONGODB_URI) {
+  app.use('/api', demoRoutes);
+} else {
+  app.use(async (_req, res, next) => {
+    try {
+      await connectDB();
+      next();
+    } catch (_error) {
+      res.status(500).json({ message: 'Database connection failed' });
+    }
+  });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/requests', requestRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/products', productRoutes);
+  app.use('/api/orders', orderRoutes);
+  app.use('/api/requests', requestRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
+}
 
 app.use((error, _req, res, _next) => {
   const status = error.name === 'ValidationError' ? 400 : 500;
