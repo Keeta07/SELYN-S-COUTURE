@@ -139,6 +139,34 @@ router.post('/products', requireDemoAdmin, (req, res) => {
   res.status(201).json(product);
 });
 
+router.put('/products/:id', requireDemoAdmin, (req, res) => {
+  const index = products.findIndex((product) => product._id === req.params.id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
+
+  products[index] = {
+    ...products[index],
+    ...req.body,
+    updatedAt: new Date().toISOString()
+  };
+
+  res.json(products[index]);
+});
+
+router.delete('/products/:id', requireDemoAdmin, (req, res) => {
+  const product = products.find((item) => item._id === req.params.id);
+
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
+
+  product.isActive = false;
+  product.updatedAt = new Date().toISOString();
+  res.json({ message: 'Product archived' });
+});
+
 router.post('/orders', (req, res) => {
   const order = {
     _id: `order-${Date.now()}`,
@@ -173,9 +201,16 @@ router.get('/requests', requireDemoAdmin, (_req, res) => {
 });
 
 router.get('/dashboard/summary', requireDemoAdmin, (_req, res) => {
+  const customerPhones = new Set(orders.map((order) => order.customer?.phone).filter(Boolean));
+  const pendingOrders = orders.filter((order) =>
+    ['new', 'pending', 'processing'].includes(String(order.status).toLowerCase())
+  ).length;
+
   res.json({
     products: products.filter((product) => product.isActive).length,
     orders: orders.length,
+    customers: customerPhones.size,
+    pendingOrders,
     requests: requests.length,
     revenue: orders.reduce((sum, order) => sum + order.total, 0)
   });
